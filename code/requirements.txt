@@ -1,8 +1,9 @@
 # Pustaka Komputasi & Rekayasa Sains Data
 # Mini Paper XAI: Accumulated Local Effects (California Housing Prices)
-numpy>=1.26.0
-pandas>=2.1.0
-scipy>=1.11.0
-scikit-learn>=1.4.0
-matplotlib>=3.8.0
-seaborn>=0.13.0
+numpy==1.26.4
+pandas==2.1.4
+scipy==1.11.4
+scikit-learn==1.4.1.post1
+matplotlib==3.11.1
+seaborn==0.13.2
+pytest==7.4.4

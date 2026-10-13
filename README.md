@@ -8,14 +8,13 @@ Proyek ini dikembangkan oleh Kelompok 3 Program Studi S1 Matematika FMIPA Univer
 
 ## Ringkasan Eksekutif
 
-Model black-box seperti Random Forest dan Gradient Boosting sering digunakan untuk memprediksi harga properti karena akurasi prediksinya yang tinggi. Namun, teknik interpretasi global standar seperti Partial Dependence Plots (PDP) mengasumsikan independensi antar fitur. Ketika fitur berkorelasi kuat (misalnya pendapatan rata-rata terhadap jumlah kamar, atau bujur terhadap lintang), PDP mengevaluasi prediksi pada kombinasi data yang tidak realistis di luar distribusi data asli (*out-of-distribution*).
+Model machine learning ensemble seperti Random Forest dan Gradient Boosting sering digunakan untuk memprediksi harga properti karena akurasi prediksinya yang tinggi. Namun, teknik interpretasi global standar seperti Partial Dependence Plots (PDP) mengasumsikan independensi antar fitur. Ketika fitur berkorelasi kuat (misalnya bujur terhadap lintang dengan $r = -0.92$, atau jumlah kamar terhadap kamar tidur dengan $r = 0.93$), PDP mengevaluasi prediksi pada kombinasi data yang tidak realistis di luar distribusi data asli (*out-of-distribution*).
 
 Metode Accumulated Local Effects (ALE) mengatasi kelemahan ini dengan:
-1. Menghitung perbedaan prediksi lokal dalam jendela interval bersyarat sempit.
-2. Mengakumulasikan turunan lokal tersebut di sepanjang rentang fitur.
-3. Melakukan pemusatan (*mean-centering*) sehingga nilai rata-rata efek ALE bernilai nol.
-
-Eksperimen pada dataset California Housing menunjukkan bahwa ALE memberikan estimasi efek marginal yang stabil tanpa melebih-lebihkan dampak fitur pada ekor distribusi, serta mampu memetakan interaksi spasial 2D (koordinat bujur dan lintang) yang merefleksikan harga properti di wilayah pesisir California secara realistis.
+1. Menghitung perbedaan prediksi lokal dalam jendela interval kuantil bersyarat sempit.
+2. Mengakumulasikan efek lokal tersebut di sepanjang rentang fitur secara invektorisasi.
+3. Melakukan pemusatan (*mean-centering*) terhadap distribusi sampel empiris sehingga $\mathbb{E}[\hat{f}_{ALE}(X)] = 0$.
+4. Menerapkan dekomposisi aditif dua arah berbobot (*two-way ANOVA centering*) untuk 2D ALE guna mengisolasi interaksi spasial murni dan mem-masking sel data kosong/jarang.
 
 ---
 
@@ -26,19 +25,22 @@ Eksperimen pada dataset California Housing menunjukkan bahwa ALE memberikan esti
 ├── LICENSE                          # Lisensi publikasi kode (MIT License)
 ├── README.md                        # Dokumentasi utama repositori
 ├── code/
-│   ├── README.md                    # Dokumentasi teknis modul komputasi
-│   ├── requirements.txt             # Daftar pustaka dependensi Python
+│   ├── README.md                    # Dokumentasi teknis modul komputasi & reproduksibilitas
+│   ├── pyproject.toml               # Konfigurasi instalasi modul Python (PEP 621)
+│   ├── requirements.txt             # Daftar dependensi ter-pinned
 │   ├── data/
-│   │   └── california_housing_prices.csv  # Dataset acuan kanonik
+│   │   └── california_housing_prices.csv  # Dataset sensus California 1990 kanonik
 │   ├── src/
 │   │   ├── __init__.py              # Inisialisasi package Python
-│   │   └── ale_engine.py            # Kalkulasi native NumPy untuk ALE 1D, ALE 2D, dan PDP 1D
+│   │   └── ale_engine.py            # Kalkulasi vectorized NumPy untuk ALE 1D, ALE 2D, dan PDP 1D
 │   ├── scripts/
-│   │   └── train_and_evaluate.py    # Pipeline pelatihan model dan ekspor grafik
+│   │   └── train_and_evaluate.py    # Pipeline pelatihan model, evaluasi, dan ekspor grafik
 │   ├── notebooks/
 │   │   └── analisis_ale_california_housing.ipynb # Eksplorasi interaktif data science
+│   ├── tests/
+│   │   └── test_ale_engine.py       # Unit test otomasi (pytest)
 │   └── outputs/
-│       ├── plots/                   # Visualisasi ilmiah 300 DPI
+│       ├── plots/                   # Visualisasi ilmiah deterministik 300 DPI
 │       │   ├── 01_correlation_matrix.png
 │       │   ├── 03_ale_1d_all_features.png
 │       │   ├── 04_ale_vs_pdp_median_income.png
@@ -51,15 +53,12 @@ Eksperimen pada dataset California Housing menunjukkan bahwa ALE memberikan esti
 
 ## Kinerja Model Regresi
 
-Eksperimen menggunakan tiga arsitektur model regresi dengan pembagian 80% data latih dan 20% data uji:
+Eksperimen menggunakan model ensemble yang teruji secara langsung pada test set independen ($N = 4.128$, 20% data) dengan rekayasa fitur rasio terenkapsulasi dalam pipeline:
 
-| Model | R² Score | RMSE (USD) | MAE (USD) |
-| :--- | :---: | :---: | :---: |
-| **XGBoost Regressor** | **0.8354** | **46.852** | **30.985** |
-| **Random Forest Regressor** | 0.8122 | 50.043 | 32.812 |
-| **Linear Regression (Baseline)** | 0.6062 | 72.410 | 52.880 |
-
-Model XGBoost dan Random Forest dijadikan model dasar untuk komparasi kurva interpretasi ALE dan PDP.
+| Model | $R^2$ Score | RMSE (USD) | MAE (USD) | Catatan Pelatihan |
+| :--- | :---: | :---: | :---: | :--- |
+| **HistGradientBoostingRegressor** | **0.8465** | **44.854** | **29.522** | Model Utama (Konvergen 212 iterasi dengan early stopping) |
+| **RandomForestRegressor** | 0.8071 | 50.280 | 32.320 | Model Pembanding (100 trees, max_depth=16) |
 
 ---
 
@@ -67,7 +66,7 @@ Model XGBoost dan Random Forest dijadikan model dasar untuk komparasi kurva inte
 
 ### 1. Kloning Repositori
 ```bash
-git clone git@github.com:ramadhan-imanur/california-housing-ale-xai.git
+git clone https://github.com/ramadhan-imanur/california-housing-ale-xai.git
 cd california-housing-ale-xai/code
 ```
 
@@ -77,17 +76,23 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
+pip install -e .
 ```
 
 ### 3. Menjalankan Pipeline Komputasi
-Untuk melatih model, menghitung kurva ALE, dan memperbarui seluruh grafik visualisasi:
+Untuk melatih model, menghitung kurva ALE, dan meregenerasi seluruh visualisasi deterministik:
 ```bash
 python3 scripts/train_and_evaluate.py
 ```
 
-### 4. Menjalankan Notebook Interaktif
+### 4. Menjalankan Unit Tests
 ```bash
-jupyter lab notebooks/analisis_ale_california_housing.ipynb
+pytest
+```
+
+### 5. Menjalankan Notebook Interaktif
+```bash
+jupyter notebook notebooks/analisis_ale_california_housing.ipynb
 ```
 
 ---
